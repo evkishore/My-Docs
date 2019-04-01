@@ -1,0 +1,194 @@
+{
+	"AWSTemplateFormatVersion":"2010-09-09",
+    "Description":"CloudFormation Template for Young Hahn's Team",
+	"Parameters": {
+		"InstanceSize": {
+			"Type": "String",
+			"Description": "Select Instance Size ",
+			"Default": "t2.micro",
+			"AllowedValues": [
+				"t2.nano",
+				"t2.micro",
+				"t2.small",
+				"t2.medium",
+				"t2.large",
+				"m4.large",
+				"m4.xlarge",
+				"m4.2xlarge",
+				"m4.4xlarge",
+				"m4.10xlarge",
+				"m3.medium",
+				"m3.large",
+				"m3.xlarge",
+				"m3.2xlarge"
+			]
+		},
+		"Role": {
+			"Type": "String",
+			"Description" : "Role to be associated with this EC2 Instance",
+			"Default": "App",
+			"AllowedValues" : [
+				"App",
+				"Web",
+				"DB"
+			]
+		},
+		"UserID": {
+			"Type": "String",
+			"Description": "This is the userID to create the instance"
+		},
+		"AppID": {
+			"Type" : "String",
+			"Description" : "The 4 Digit ID to be associated with the EC2 Instance",
+			"Default" : "B6VV",
+			"AllowedValues" : [
+				"B6VV",
+				"BNIV"
+			]
+		},
+		"Name": {
+			"Type": "String",
+			"Description": "Name of the Instance ",
+			"Default": "DVS-AWS-CloudFormation"
+		},
+		"SubnetType": {
+		    "Type": "String",
+			"Description" : "Select the Subnet to deploy EC2 Instance",
+		    "Default": "SubnetA",
+		    "AllowedValues": [
+		        "SubnetA",
+		        "SubnetB",
+		        "SubnetC"
+		    ]
+		},
+		"AppName": {
+		    "Type": "String",
+			"Description" : "Select the Applicaiton Name (DVS,CPI,MPI,RDS)",
+		    "Default": "DVS",
+		    "AllowedValues": [
+		        "DVS",
+		        "CPI",
+		        "MPI",
+		        "RDS"
+		    ]
+		}
+	},
+	"Mappings": {
+		"RegionMap": {
+			"us-east-1": {
+				"DVS": "ami-74a28262",
+				"CPI": "ami-8fd1d4f4",
+				"MPI": "ami-8fd1d4f4",
+				"RDS": "ami-8fd1d4f4",
+				"SubnetA" : "subnet-dcb24a94",
+				"SubnetB" : "subnet-513620a",
+				"SubnetC" : "subnet-1f5a197a",
+				"InfraSG" : "sg-0864ea77",
+				"MasterSSH" : "sg-a5d7bcdb",
+				"MasterHTTP" :"sg-6429431a"
+			},
+			"us-west-2": {
+				"DVS": "ami-428d863b",
+				"CPI": "ami-f8ee1380",
+				"MPI": "ami-f8ee1380",
+				"RDS": "ami-f8ee1380",
+				"SubnetA" : "subnet-edfb9d8a",
+				"SubnetB" : "subnet-e648f0af",
+				"SubnetC" : "subnet-aa1705f2",
+				"InfraSG" : "sg-95c52cee",
+				"MasterSSH" : "sg-74a0d30f",
+				"MasterHTTP" : "sg-e6b9ca9d"
+			}
+		},
+		"SecurityGroup" : {
+			"us-east-1" : {
+				"DVS" : "sg-f5cd3d84",
+				"CPI" : "sg-80d141f0",
+				"MPI" : "sg-80d141f0",
+				"RDS" : "sg-80d141f0"
+			},
+			"us-west-2" : {
+				"DVS" : "sg-edb3bc96",
+				"CPI" : "sg-08956575",
+				"MPI" : "sg-08956575",
+				"RDS" : "sg-08956575"
+			}
+		},
+		"Vsad": {
+			"DVS": {
+				"Tag" : "B6VV"
+			},
+			"CPI": {
+				"Tag" : "BNIV"
+			},
+			"MPI": {
+				"Tag" : "BNIV"
+			},
+			"RDS": {
+				"Tag" : "BNIV"
+			}
+		}
+	},
+	"Resources": {
+		"EC2": {
+			"Type": "AWS::EC2::Instance",
+			"Properties": {
+				"ImageId": {"Fn::FindInMap" : ["RegionMap", {"Ref" : "AWS::Region"}, {"Ref" : "AppName"}]},
+				"InstanceType": {"Ref" : "InstanceSize"},
+				"SubnetId": {"Fn::FindInMap" : ["RegionMap", {"Ref" : "AWS::Region"}, {"Ref" : "SubnetType"}]},
+				"SecurityGroupIds": [{
+						"Fn::FindInMap": ["RegionMap", {
+								"Ref": "AWS::Region"
+							}, "InfraSG"]
+					}, {
+						"Fn::FindInMap": ["RegionMap", {
+								"Ref": "AWS::Region"
+							}, "MasterHTTP"]
+					}, {
+						"Fn::FindInMap": ["RegionMap", {
+								"Ref": "AWS::Region"
+							}, "MasterSSH"]
+					}, {"Fn::FindInMap": ["SecurityGroup", {
+								"Ref": "AWS::Region"
+							}, {"Ref" : "AppName"}]
+					}
+				],
+				"Tags": [
+				{
+					"Key" : "Userid",
+					"Value": {"Ref" :"UserID"}
+				},
+				{
+					"Key" : "Role",
+					"Value": {"Ref" :"Role"}
+				},
+				{
+					"Key" : "Vsad",
+					"Value": {"Fn::FindInMap" : ["Vsad", {"Ref" : "AppName"}, "Tag"]}
+				},
+				{
+					"Key" : "Name",
+					"Value": {"Ref" :"Name"}
+				},
+				{
+					"Key" : "nostop",
+					"Value" : "Yes"
+				}]
+			}
+		}
+	},
+	"Outputs": {
+		"InstanceId" : {
+			"Description" : "InstanceId of the newly created EC2 Instance",
+			"Value" : { "Ref" : "EC2" }
+		},
+		"PrivateIP" : {
+			"Description" : "PrivateIP of the newly created EC2 Instance",
+			"Value" : { "Fn::GetAtt" : [ "EC2", "PrivateIp" ] }
+		},
+		"DNSName" : {
+			"Description" : "HostName/DNS Name of the newly created EC2 Instance",
+			"Value" : { "Fn::GetAtt" : [ "EC2", "PrivateDnsName" ] }
+		}
+	}		
+}
